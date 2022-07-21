@@ -1,0 +1,149 @@
+<html lang="TR">
+<head>
+    <meta charset="UTF-8">
+	<title>Bursa Burulaş Live Bus Tracking</title>
+	<meta name="viewport" content="width=device-width">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<link rel="stylesheet" href="assets/css/bootstrap.css">
+    <script src="assets/js/jquery.js"></script>
+	<script src="assets/js/jquery-ui.js"></script>
+    <script src="assets/js/bootstrap.js"></script>
+    <link rel="stylesheet" href="assets/css/leaflet.css">
+    <script src="assets/js/leaflet.js"></script>
+	<meta content="Bursa'da şu an hareket halinde olan Burulaş otobüslerinden istediğiniz hattı ücretsiz takip edin.." name="description">
+    <meta content="bursa otobus takip, burulas takip, bursa toplu tasima takip" name="keywords">
+	<meta content="Kadir Çolak" name="author">
+    <meta content="Kadir Çolak" name="designer">
+    <meta property="og:title" content="Bursa Burulaş canlı otobüs takip">
+    <meta property="og:description" content="Bursa'da şu an hareket halinde olan Burulaş otobüslerinden istediğiniz hattı ücretsiz takip edin..">
+    <meta property="og:image" content="https://kadircolak.com/assets/img/portfolio/burulas_takip.png">
+    <meta property="og:url" content="https://kadircolak.com/proje/burulas/">
+    <link rel="canonical" href="https://kadircolak.com/proje/burulas/">
+    <style> #map { width:100%;height:100%;z-index:10 } </style>
+</head>
+<body>
+    <div id="map"> </div>
+	<button type="button" class="btn btn-primary" id="popup" data-toggle="modal" data-target="#exampleModal" style="display:none;width:0;height:0;border:none"></button>
+    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+           </button>
+          </div>
+          <div class="modal-body" id="modal-body">
+            
+          </div>
+          <div class="modal-footer" id="modal-footer">
+            <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+</body>
+</html>
+<script>
+const fullPath = window.location.pathname;
+const pageName = fullPath.split("/").pop();
+const link = window.location.pathname.substring(0,fullPath.length-pageName.length);
+var busLine="93";
+const webService = "https://ulasimapi.burulas.com.tr/api/NetworkInfo/VehiclesPosition?code=";
+const imageUrl="/assets/img/yellow.png";
+const noNext="NOT FIND";
+var busLat, busLng, nextStation, currentSpeed, lastTime, vehicleNo;
+var icon, marker;
+const istLat=40.20848506229944;
+const istLng=29.03914551029308;
+const zoom=10;
+var googleTraffic;
+var openStreet;
+var googleSateLite;
+var baseLayers;
+var mymap;
+var busArray=[];
+var markerId="empty";
+var arrayCount=0;
+var nextLat;
+var nextLng;
+var polyline;
+var array=[];
+
+googleTraffic=L.tileLayer("https://{s}.google.com/vt/lyrs=m@221097413,traffic&x={x}&y={y}&z={z}",{maxZoom:18,minZoom:9,subdomains:["mt0","mt1","mt2","mt3"]});
+openStreet=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,minZoom:9});
+googleSateLite=L.tileLayer("https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",{maxZoom:18,minZoom:9,subdomains:["mt0","mt1","mt2","mt3"]});
+mymap=L.map("map",{center:[istLat,istLng],zoom:zoom,layers:[googleTraffic,openStreet,googleSateLite]});
+baseLayers={"Sokak Görünüm":openStreet,"Uydu Görünüm":googleSateLite,"Trafik Görünüm":googleTraffic};
+L.control.layers(baseLayers).addTo(mymap),shipLayer=L.layerGroup(),mymap.addLayer(shipLayer);
+
+function onClick(a)
+{
+  $("#exampleModal").hide();
+  markerId=a.target.options.markerId.toString();
+  $("#popup").trigger("click");
+  $.getJSON(webService+busLine, function (json) {
+	  busArray.forEach(selectBus);
+	  function selectBus(item, index) {
+         if(markerId==item.vehicleNo)
+		 {
+		     $("#modal-body").html("<b> Bus: </b> "+item.busLine+"<br>  <b> Current Speed: </b> <i>"+ item.currentSpeed + " km/h</i> <br> <b>Vehicle NO: </b>"+item.vehicleNo+"<br> <b>Next Station: </b>"+item.nextStation+"<br> <b>Last Location Date: </b> "+item.lastTime+" <br> <b> Where Is?: </b> <a href='https://www.google.com/maps/search/?api=1&query="+item.busLat+","+item.busLng+"' target='_blank'> Google Maps</a>");
+		 }
+      }
+  });
+}
+
+setInterval(function () {
+        try {
+		        $("#modal-body").html("<font size='4' color='green'> Updating data.. </font>");
+                shipLayer.clearLayers();
+                busArray = [];
+                $.getJSON(webService+busLine, function (json) {
+                try { arrayCount = Object.keys(json.data).length; }
+				catch { if(busLine.trim().length!=0) noBus(); }
+	            for(var i=0;i<arrayCount;i++)
+	            {
+	               busLat = parseFloat(json.data[i].currentLocation.Lat);
+	               busLng = parseFloat(json.data[i].currentLocation.Lng);
+	               currentSpeed= parseInt(json.data[i].currentSpeed);
+	               lastTime = json.data[i].lastGPSTime;
+	               vehicleNo = json.data[i].VehicleNo;
+	               lastTime = lastTime.replaceAll("T"," ");
+	               try
+	               {
+	                  nextStation = json.data[i].nextStation.SName;
+					  nextLat = parseFloat(json.data[i].nextStation.SLat);
+	                  nextLng = parseFloat(json.data[i].nextStation.SLng);
+					  array=[[busLat,busLng],[nextLat,nextLng]];
+	                  polyLine=L.polyline(array,{color:"blue"}).addTo(mymap);
+	                  shipLayer.addLayer(polyLine);
+	               }
+	               catch(error)
+	               {
+	                  nextStation = noNext;
+	               }
+	            busLine=json.data[i].LineCode;
+	            icon = L.icon({ iconUrl: link+imageUrl, iconSize: [28, 28], popupAnchor: [0, -14] });
+                marker = L.marker([busLat,busLng], { icon: icon, markerId:vehicleNo }).addTo(mymap).on("click",onClick);
+	            shipLayer.addLayer(marker);
+	            busArray.push({busLine:busLine,currentSpeed:currentSpeed,nextStation:nextStation,busLat:parseFloat(busLat),busLng:parseFloat(busLng),lastTime:lastTime,vehicleNo:vehicleNo,sonrakiDLat:nextLat,sonrakiDLng:nextLng});
+				array=[];
+	    }
+		            busArray.forEach(selectBus);
+	  function selectBus(item, index) {
+         if(item.vehicleNo.toString()==markerId.toString())
+		 {
+		     $("#modal-body").html("<b> Bus:: </b> "+item.busLine+"<br>  <b> Current Speed: </b> <i>"+ item.currentSpeed + " km/h</i> <br> <b>Vehicle NO: </b>"+item.vehicleNo+"<br> <b>Next Station: </b>"+item.nextStation+"<br> <b>Last Location Date: </b> "+item.lastTime+" <b> Where Is?: </b> <a href='https://www.google.com/maps/search/?api=1&query="+item.busLat+","+item.busLng+"' target='_blank'> Google Maps</a>");
+		 }
+      }
+                    
+                });
+        }
+		catch(a) {}
+    }(), 15015);
+
+function noBus()
+{
+    $("#popup").trigger("click"), $("#modal-body").html("<center> <font size='4' color='blue'> <b> Böyle bir Bus: busLinetı yok.. </b> </font> </center>"), (error = !0);
+}
+console.log("This web software created by Kadir Colak \n -> https://github.com/kadocolak/ ");
+</script>
