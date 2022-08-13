@@ -73,7 +73,7 @@ googleTraffic=L.tileLayer("https://{s}.google.com/vt/lyrs=m@221097413,traffic&x=
 openStreet=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,minZoom:9});
 googleSateLite=L.tileLayer("https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",{maxZoom:18,minZoom:9,subdomains:["mt0","mt1","mt2","mt3"]});
 mymap=L.map("map",{center:[istLat,istLng],zoom:zoom,layers:[googleTraffic,openStreet,googleSateLite]});
-baseLayers={"Sokak Görünüm":openStreet,"Uydu Görünüm":googleSateLite,"Trafik Görünüm":googleTraffic};
+baseLayers={"Road View":openStreet,"Satellite View":googleSateLite,"Traffic View":googleTraffic};
 L.control.layers(baseLayers).addTo(mymap),shipLayer=L.layerGroup(),mymap.addLayer(shipLayer);
 
 function searchBus()
@@ -182,7 +182,7 @@ setInterval(function () {
 
 function noBus()
 {
-    $("#popup").trigger("click"), $("#modal-body").html("<center> <font size='4' color='blue'> <b> Böyle bir Bus: busLinetı yok.. </b> </font> </center>"), (error = !0);
+    $("#popup").trigger("click"), $("#modal-body").html("<center> <font size='4' color='blue'> <b> There is no such bus line. </b> </font> </center>"), (error = !0);
 }
 
 console.log("This web software created by Kadir Colak \n -> https://github.com/kadocolak/ ");
